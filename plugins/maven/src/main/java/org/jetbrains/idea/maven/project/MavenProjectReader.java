@@ -202,6 +202,7 @@ public class MavenProjectReader {
     mavenBuildBase.setResources(collectResources(MavenJDOMUtil.findChildrenByPath(xmlBuild, "resources", "resource")));
     mavenBuildBase.setTestResources(collectResources(MavenJDOMUtil.findChildrenByPath(xmlBuild, "testResources", "testResource")));
     mavenBuildBase.setFilters(MavenJDOMUtil.findChildrenValuesByPath(xmlBuild, "filters", "filter"));
+    mavenBuildBase.setPlugins(collectPlugins(MavenJDOMUtil.findChildrenByPath(xmlBuild, "plugins", "plugin")));
 
     if (mavenBuildBase instanceof MavenBuild) {
       MavenBuild mavenBuild = (MavenBuild)mavenBuildBase;
@@ -213,7 +214,28 @@ public class MavenProjectReader {
 
       mavenBuild.setOutputDirectory(MavenJDOMUtil.findChildValueByPath(xmlBuild, "outputDirectory"));
       mavenBuild.setTestOutputDirectory(MavenJDOMUtil.findChildValueByPath(xmlBuild, "testOutputDirectory"));
+      List<Element> xmlProfiles = MavenJDOMUtil.findChildrenByPath(xmlModel, "profiles", "profile");
+      List<MavenProfile> mavenProfiles = new ArrayList<>();
+      collectProfiles(xmlProfiles, mavenProfiles, MavenConstants.PROFILE_FROM_POM);
+      mavenBuild.setProfiles(mavenProfiles);
     }
+  }
+
+  private static List<MavenPlugin> collectPlugins(List<Element> xmlPlugins) {
+    List<MavenPlugin> result = new ArrayList<>();
+    for (Element plugin : xmlPlugins) {
+      result.add(new MavenPlugin(
+        MavenJDOMUtil.findChildValueByPath(plugin, "groupId"),
+        MavenJDOMUtil.findChildValueByPath(plugin, "artifactId"),
+        MavenJDOMUtil.findChildValueByPath(plugin, "version"),
+        false /* no plugin-management */,
+        false,
+        MavenJDOMUtil.findChildByPath(plugin, "configuration"),
+        Collections.emptyList(),
+        Collections.emptyList()
+      ));
+    }
+    return result;
   }
 
   private static List<MavenResource> collectResources(List<Element> xmlResources) {
@@ -341,7 +363,7 @@ public class MavenProjectReader {
     alwaysOnProfiles.addAll(MavenJDOMUtil.findChildrenValuesByPath(rootElement, "activeProfiles", "activeProfile"));
   }
 
-  private void collectProfiles(List<Element> xmlProfiles, List<MavenProfile> result, String source) {
+  private static void collectProfiles(List<Element> xmlProfiles, List<MavenProfile> result, String source) {
     for (Element each : xmlProfiles) {
       String id = MavenJDOMUtil.findChildValueByPath(each, "id");
       if (isEmptyOrSpaces(id)) continue;
@@ -386,7 +408,7 @@ public class MavenProjectReader {
     }
   }
 
-  private boolean addProfileIfDoesNotExist(MavenProfile profile, List<MavenProfile> result) {
+  private static boolean addProfileIfDoesNotExist(MavenProfile profile, List<MavenProfile> result) {
     for (MavenProfile each : result) {
       if (Objects.equals(each.getId(), profile.getId())) return false;
     }

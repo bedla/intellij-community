@@ -25,6 +25,7 @@ public class MavenBuild extends MavenBuildBase implements Serializable {
   private String myTestOutputDirectory;
   private List<String> mySources;
   private List<String> myTestSources;
+  private List<MavenProfile> myProfiles;
 
   public String getOutputDirectory() {
     return myOutputDirectory;
@@ -66,5 +67,13 @@ public class MavenBuild extends MavenBuildBase implements Serializable {
   public void addTestSource(String source) {
     if (myTestSources == null) myTestSources = new ArrayList<String>();
     myTestSources.add(source);
+  }
+
+  public List<MavenProfile> getProfiles() {
+    return myProfiles;
+  }
+
+  public void setProfiles(List<MavenProfile> profiles) {
+    myProfiles = profiles;
   }
 }

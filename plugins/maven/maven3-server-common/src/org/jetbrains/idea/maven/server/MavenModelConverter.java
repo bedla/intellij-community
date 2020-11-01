@@ -89,7 +89,7 @@ public class MavenModelConverter {
     return result;
   }
 
-  public static void convertBuild(MavenBuild result, Build build, List<String> sources, List<String> testSources) {
+  public static void convertBuild(MavenBuild result, Build build, List<String> sources, List<String> testSources) throws RemoteException {
     convertBuildBase(result, build);
     result.setOutputDirectory(build.getOutputDirectory());
     result.setTestOutputDirectory(build.getTestOutputDirectory());
@@ -97,13 +97,14 @@ public class MavenModelConverter {
     result.setTestSources(testSources);
   }
 
-  private static void convertBuildBase(MavenBuildBase result, BuildBase build) {
+  private static void convertBuildBase(MavenBuildBase result, BuildBase build) throws RemoteException {
     result.setFinalName(build.getFinalName());
     result.setDefaultGoal(build.getDefaultGoal());
     result.setDirectory(build.getDirectory());
     result.setResources(convertResources(build.getResources()));
     result.setTestResources(convertResources(build.getTestResources()));
     result.setFilters(build.getFilters() == null ? Collections.<String>emptyList() : build.getFilters());
+    result.setPlugins(convertPlugins(build.getPlugins()));
   }
 
   public static MavenId createMavenId(Artifact artifact) {
@@ -234,17 +235,25 @@ public class MavenModelConverter {
     return result;
   }
 
+  public static List<MavenPlugin> convertPlugins(List<Plugin> plugins) throws RemoteException {
+    if (plugins == null) {
+      return Collections.emptyList();
+    }
+
+    final List<MavenPlugin> result = new ArrayList<MavenPlugin>();
+    for (Plugin each : plugins) {
+      result.add(convertPlugin(false, each));
+    }
+    return result;
+  }
+
   public static List<MavenPlugin> convertPlugins(Model mavenModel) throws RemoteException {
     List<MavenPlugin> result = new ArrayList<MavenPlugin>();
     Build build = mavenModel.getBuild();
 
     if (build != null) {
       List<Plugin> plugins = build.getPlugins();
-      if (plugins != null) {
-        for (Plugin each : plugins) {
-          result.add(convertPlugin(false, each));
-        }
-      }
+      result.addAll(convertPlugins(plugins));
     }
 
     return result;
@@ -301,7 +310,22 @@ public class MavenModelConverter {
     return result;
   }
 
-  public static List<MavenProfile> convertProfiles(Collection<? extends Profile> profiles) {
+  private static Xpp3Dom elementToXpp(Element element) {
+    if (element == null) {
+      return null;
+    }
+    final Xpp3Dom result = new Xpp3Dom(element.getName());
+    if (element.getChildren().isEmpty()) {
+      result.setValue(element.getText());
+    } else {
+      for (Element child : element.getChildren()) {
+        result.addChild(elementToXpp(child));
+      }
+    }
+    return result;
+  }
+
+  public static List<MavenProfile> convertProfiles(Collection<? extends Profile> profiles) throws RemoteException {
     if (profiles == null) return Collections.emptyList();
     List<MavenProfile> result = new ArrayList<MavenProfile>();
     for (Profile each : profiles) {
@@ -492,6 +516,20 @@ public class MavenModelConverter {
     to.setFilters(from.getFilters());
     to.setResources(toNativeResources(from.getResources()));
     to.setTestResources(toNativeResources(from.getTestResources()));
+    to.setPlugins(toNativePlugins(from.getPlugins()));
+  }
+
+  private static List<Plugin> toNativePlugins(List<MavenPlugin> plugins) {
+    final List<Plugin> result = new ArrayList<Plugin>();
+    for (MavenPlugin mavenPlugin : plugins) {
+      final Plugin plugin = new Plugin();
+      plugin.setGroupId(mavenPlugin.getGroupId());
+      plugin.setArtifactId(mavenPlugin.getArtifactId());
+      plugin.setVersion(mavenPlugin.getVersion());
+      plugin.setConfiguration(elementToXpp(mavenPlugin.getConfigurationElement()));
+      result.add(plugin);
+    }
+    return result;
   }
 
   private static List<Resource> toNativeResources(List<MavenResource> resources) {
